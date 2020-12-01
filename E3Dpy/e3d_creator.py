@@ -118,22 +118,27 @@ class e3d_model:
         except:
             print('Define either dx or nrec')
             
-    def define_source(self,srcx,srcz,src_type=1,freq=50,amp=1e+16):
+    def define_source(self,srcx,srcz,src_type=1,freq=50,amp=1e+16,Mxx=1,Myy=1,Mzz=1,Mxy=0,Mxz=0,Myz=0):
         """
         Define the source location and type
         Arguements:
         Required:
         srcx - x-coordinate of source
         srcz - z-coordinate of source
-        src_type - Source type. 1: explosive (p-wave)
-        
-        to do: need to expand for moment tensors
+        src_type - Source types. 1: Explosive (p-wave)
+                                 4: Moment tensor
+
         """
         self.source['srcx']=srcx
         self.source['srcz']=srcz
-        self.source['src_type']=src_type
         self.source['freq']=freq
         self.source['amp']=amp
+        self.source['src_type']=src_type
+        
+        if src_type==4:
+            self.source['mt']=[Mxx,Myy,Mzz,Mxy,Mxz,Myz]
+          
+            
         
             
     def plot_model(self):
@@ -143,10 +148,19 @@ class e3d_model:
         To do: add velocity model
         """
         
-        plt.figure(figsize=[8,4])
+        plt.figure(figsize=[10,5])
         
         plt.scatter(self.receivers['recxs'],self.receivers['reczs'],marker='v')
-        plt.scatter(self.source['srcx'],self.source['srcz'],marker='*',color='r',s=100)
+        if self.source['src_type']==4:
+            from obspy.imaging.beachball import beach
+            beach = beach(self.source['mt'], xy=(self.source['srcx'],self.source['srcz']), width=self.model_parameters['xmax']*0.05)
+            ax = plt.gca()
+            
+            ax.add_collection(beach) 
+            ax.set_aspect("equal")
+            
+        else:
+            plt.scatter(self.source['srcx'],self.source['srcz'],marker='*',color='r',s=200)
         
         plt.axhline(y=0,c='0.5')
         plt.xlim(0,self.model_parameters['xmax'])
@@ -185,7 +199,10 @@ class e3d_model:
         
         f.write("visual movie=5\n\n")
 
-        f.write("source type=%s x=%s z=%s freq=%s amp=%s\n\n"%(self.source['src_type'],self.source['srcx'],self.source['srcz'],self.source['freq'],self.source['amp'])) 
+        if self.source['src_type']!=4:
+            f.write("source type=%s x=%s z=%s freq=%s amp=%s\n\n"%(self.source['src_type'],self.source['srcx'],self.source['srcz'],self.source['freq'],self.source['amp'])) 
+        else:
+            f.write("source type=%s x=%s z=%s freq=%s amp=%s Mxx=%s Myy=%s Mzz=%s Mxy=%s Mxz=%s Myz=%s\n\n"%(self.source['src_type'],self.source['srcx'],self.source['srcz'],self.source['freq'],self.source['amp'],self.source['mt'][0],self.source['mt'][1],self.source['mt'][2],self.source['mt'][3],self.source['mt'][4],self.source['mt'][5])) 
 
         for r in range(len(self.receivers['recxs'])):
             f.write('sac x=%0.3f z=%0.3f file=%s\n'%(self.receivers['recxs'][r],self.receivers['reczs'][r],self.model_name))

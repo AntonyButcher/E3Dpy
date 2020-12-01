@@ -6,7 +6,9 @@ Home-page: https://github.com/AntonyButcher/
 Author: Antony Butcher
 Author-email: 
 License: UNKNOWN
-Description: UNKNOWN
+Description: # Installation
+        
+        python setup.py develop
 Platform: UNKNOWN
 Classifier: Development Status :: 4 - Beta
 Classifier: Programming Language :: Python :: 3

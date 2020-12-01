@@ -2,4 +2,5 @@
 **/__pycache__
 **/*checkpoint.ipynb
 **/.DS_Store
-
+**/.ipynb_checkpoints/*
+E3Dpy/.ipynb_checkpoints/e3d_creator-checkpoint.py
