@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: E3Dpy
+Version: 0.0.1
+Summary: E3Dpy - A package for creating E3D parameter files in python
+Home-page: https://github.com/AntonyButcher/
+Author: Antony Butcher
+Author-email: 
+License: UNKNOWN
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Development Status :: 4 - Beta
+Classifier: Programming Language :: Python :: 3
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: OS Independent
+Description-Content-Type: text/markdown

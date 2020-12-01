@@ -1,0 +1,5 @@
+**/*.cpython-37.pyc
+**/__pycache__
+**/*checkpoint.ipynb
+**/.DS_Store
+

@@ -1,0 +1,196 @@
+#-----------------------------------------------------------------------------------------------------------------------------------------
+
+# Script Description:
+# Script to convert nonlinloc input and output files to python friendly format.
+
+# Input variables:
+
+# Output variables:
+
+# Usage:
+# from NonLinLocPy import read_nonlinloc 
+# hyp_file_data = read_nonlinloc.read_hyp_file("loc.Tom_RunNLLoc000.20110603.142037.grid0.loc.hyp")
+
+# Created by Tom Hudson, 24th Febraury 2020
+
+#---------------------------------------------------------------------------------
+
+# ------------------- Import neccessary modules ------------------
+import numpy as np
+import pandas as pd
+import os
+import matplotlib.pyplot as plt
+# ------------------- End: Import neccessary modules ------------------
+
+# ------------------- Define generally useful functions/classes -------------------
+
+class e3d_model:
+    "Class to store e3d model parameters"
+    
+    def __init__(self,model_name):
+        self.model_name=model_name
+        self.velocity_model={}
+        self.model_parameters={}
+        self.receivers={}
+        self.source={}
+        
+    def import_velocity(self,fname,units='m'):
+        """
+        Import velocity model from file
+        
+        Arguements:
+        Required:
+        fname - velocity file in format [depth vp vs rho]
+        Optional:
+        units - file units. Needs to be km for e3d. 
+        """
+        velmod=pd.read_csv(fname,sep=' ',names=['depth','vp','vs','rho'])
+        
+        if units =='m':
+            
+            velmod.depth=velmod.depth/1000
+            velmod.vp=velmod.vp/1000
+            velmod.vs=velmod.vs/1000
+            velmod.rho=velmod.rho/1000 
+        
+        self.velocity_model['depth']=velmod.depth.values
+        self.velocity_model['vp']=velmod.vp.values
+        self.velocity_model['vs']=velmod.vs.values
+        self.velocity_model['rho']=velmod.rho.values
+
+    def plot_velocity(self):
+        
+        """
+        Quick plotting function of velocity profile
+        to do: added attenuation to the model
+        """
+        
+        plt.figure(figsize=[2,6])
+        plt.plot(self.velocity_model['vp'],self.velocity_model['depth'],'r',label='vp')
+        plt.plot(self.velocity_model['vs'],self.velocity_model['depth'],'b',label='vs')
+
+        plt.ylim(np.max(self.velocity_model['depth']),np.min(self.velocity_model['depth']))
+        
+        plt.xlabel('Velocity (km/s)')
+        plt.ylabel('Depth (km)')
+        plt.legend()
+        plt.grid()
+        plt.show()
+        
+    def assign_model_parameters(self,xmax,zmax,dh,duration):
+        """
+        Define the key model parameters
+        Arguements:
+        Required:
+        xmax - Maximum length of model profile
+        zmax - Maximum depth of model profile
+        dh - Cell size. This is dependent on the minimum wavelength
+        duration - Time duration of the model
+        """
+        self.model_parameters['xmax']=xmax
+        self.model_parameters['zmax']=zmax
+        self.model_parameters['dh']=dh
+        self.model_parameters['duration']=duration
+        
+    def position_receivers(self,xstart,xend,dx=0,nrec=0,zstart=0,zend=0):
+        """
+        Define receiver locations
+        Arguements:
+        Required:
+        xstart - First receiver x location in km
+        xend - Last receiver x location in km
+        nrec - Number of receivers
+        Optional:
+        zstart - First receiver z location in km
+        zend - Last receiver z location in km        
+        """
+        
+        try:
+            if dx !=0:
+                recxs=np.arange(xstart,xend+dx,dx)
+                reczs=np.linspace(zstart,zend,len(recxs))
+            elif nrec!=0:
+                recxs=np.linspace(xstart,xend,nrec)
+                reczs=np.linspace(zstart,zend,nrec)
+                
+            self.receivers['recxs']=recxs
+            self.receivers['reczs']=reczs
+        except:
+            print('Define either dx or nrec')
+            
+    def define_source(self,srcx,srcz,src_type=1,freq=50,amp=1e+16):
+        """
+        Define the source location and type
+        Arguements:
+        Required:
+        srcx - x-coordinate of source
+        srcz - z-coordinate of source
+        src_type - Source type. 1: explosive (p-wave)
+        
+        to do: need to expand for moment tensors
+        """
+        self.source['srcx']=srcx
+        self.source['srcz']=srcz
+        self.source['src_type']=src_type
+        self.source['freq']=freq
+        self.source['amp']=amp
+        
+            
+    def plot_model(self):
+        
+        """
+        Quick plotting function of model dimensions.
+        To do: add velocity model
+        """
+        
+        plt.figure(figsize=[8,4])
+        
+        plt.scatter(self.receivers['recxs'],self.receivers['reczs'],marker='v')
+        plt.scatter(self.source['srcx'],self.source['srcz'],marker='*',color='r',s=100)
+        
+        plt.axhline(y=0,c='0.5')
+        plt.xlim(0,self.model_parameters['xmax'])
+        plt.ylim(self.model_parameters['zmax'],-0.1*self.model_parameters['zmax'])
+        
+        plt.xlabel('Distance (km)')
+        plt.ylabel('Depth (km)')
+        plt.grid()
+        plt.show()
+        
+    def create_e3d_file(self,path='./'):
+        """
+        Function to create an e3d input file
+        Arguements:
+        Optional:
+        path - path to save file e.g. 'model/'
+        """
+        dt=0.606*self.model_parameters['dh']/np.max(self.velocity_model['vp']) # dt needs to satify the courant condition
+        t=int(self.model_parameters['duration']/dt)
+        
+        # Check path exists, if not create one
+        if not os.path.exists(path):
+            os.makedirs(path)
+            
+        # Create e3d parameter file
+        f=open('%s%s_e3dmodel.txt'%(path,self.model_name),'w')
+        f.write("grid x=%s z=%s dh=%s b=2 q=1\ntime dt=%0.5f t=%s\n"%(self.model_parameters['xmax'],self.model_parameters['zmax'],self.model_parameters['dh'],dt,t))
+        f.write("block p=%s s=%s r=%s Q=20 Qf=50\n"%(self.velocity_model['vp'][0],self.velocity_model['vs'][0],self.velocity_model['rho'][0]))
+        
+        for i in range(1,len(self.velocity_model['vp'])-1):
+            f.write("block p=%s s=%s r=%s z1=%s z2=%s Q=20 Qf=50\n"%(self.velocity_model['vp'][i],self.velocity_model['vs'][i],self.velocity_model['rho'][i],
+                                                                     self.velocity_model['depth'][i],self.velocity_model['depth'][i+1]))
+        
+        f.write("block p=%s s=%s r=%s z1=%s z2=%s Q=20 Qf=50\n\n"%(self.velocity_model['vp'][i+1],self.velocity_model['vs'][i+1],self.velocity_model['rho'][i+1],
+                                                                   self.velocity_model['depth'][i+1],self.model_parameters['zmax'])) # extend to the based of the model  
+        
+        f.write("visual movie=5\n\n")
+
+        f.write("source type=%s x=%s z=%s freq=%s amp=%s\n\n"%(self.source['src_type'],self.source['srcx'],self.source['srcz'],self.source['freq'],self.source['amp'])) 
+
+        for r in range(len(self.receivers['recxs'])):
+            f.write('sac x=%0.3f z=%0.3f file=%s\n'%(self.receivers['recxs'][r],self.receivers['reczs'][r],self.model_name))
+
+        f.write("visual sample=0.1 movie=1 scale=10000000000/n")
+        f.close()
+        
+        print('File created: %s%s_e3dmodel.txt'%(path,self.model_name))
